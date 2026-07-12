@@ -6,8 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { z } from 'zod';
 import { Input, Button } from '../../components/UI';
-import { AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { AlertCircle, UserPlus, User, Mail, Lock, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -17,11 +17,52 @@ const schema = z.object({
 
 type RegisterFormFields = z.infer<typeof schema>;
 
+const PasswordStrengthBar: React.FC<{ password: string }> = ({ password }) => {
+  const getStrength = () => {
+    if (!password) return 0;
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    return score;
+  };
+
+  const strength = getStrength();
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const colors = ['', 'bg-red-500', 'bg-amber-500', 'bg-blue-500', 'bg-emerald-500'];
+
+  if (!password) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-1.5 mt-1"
+    >
+      <div className="flex gap-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+              i < strength ? colors[strength] : 'bg-white/10'
+            }`}
+          />
+        ))}
+      </div>
+      <span className={`text-[10px] font-bold ${colors[strength].replace('bg-', 'text-')}`}>
+        {labels[strength]} Password
+      </span>
+    </motion.div>
+  );
+};
+
 export const RegisterPage: React.FC = () => {
   const { register: registerUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [watchedPassword, setWatchedPassword] = useState('');
 
   const {
     register,
@@ -48,26 +89,45 @@ export const RegisterPage: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.35 }}
       className="w-full"
     >
       <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="text-center flex flex-col gap-1.5">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+        <div className="text-center flex flex-col gap-2">
+          <h2 className="font-display font-black text-2xl text-white tracking-wider uppercase">
             Create Account
           </h2>
-          <p className="text-slate-400 text-xs">
+          <p className="text-silver-500 text-xs font-medium">
             Register a new client or dealership user account
           </p>
         </div>
 
-        {errorMsg && (
-          <div className="flex items-center gap-2 p-3 bg-red-955/35 border border-red-500/50 rounded-lg text-red-200 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+        <div className="divider-gold" />
+
+        {/* Perks row */}
+        <div className="flex justify-center gap-5">
+          {['Instant Access', 'Secure JWT', 'Free Forever'].map((perk) => (
+            <div key={perk} className="flex items-center gap-1.5 text-[10px] font-bold text-silver-600 uppercase tracking-widest">
+              <Check className="w-3 h-3 text-gold-500" /> {perk}
+            </div>
+          ))}
+        </div>
+
+        {/* Error message */}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              className="flex items-center gap-2.5 p-3.5 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-xs font-medium"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {errorMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <Input
@@ -75,6 +135,7 @@ export const RegisterPage: React.FC = () => {
             type="text"
             placeholder="John Doe"
             error={errors.name?.message}
+            icon={<User className="w-4 h-4" />}
             {...register('name')}
           />
           <Input
@@ -82,33 +143,40 @@ export const RegisterPage: React.FC = () => {
             type="email"
             placeholder="john@dealership.com"
             error={errors.email?.message}
+            icon={<Mail className="w-4 h-4" />}
             {...register('email')}
           />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            error={errors.password?.message}
-            {...register('password')}
-          />
+          <div>
+            <Input
+              label="Password"
+              type="password"
+              placeholder="Min. 8 characters"
+              error={errors.password?.message}
+              icon={<Lock className="w-4 h-4" />}
+              {...register('password', {
+                onChange: (e) => setWatchedPassword(e.target.value),
+              })}
+            />
+            <PasswordStrengthBar password={watchedPassword} />
+          </div>
 
           <Button
             type="submit"
-            variant="accent"
+            variant="gold"
             isLoading={isSubmitting}
-            className="w-full mt-2 font-bold uppercase tracking-wider py-3"
+            className="w-full mt-2 font-black uppercase tracking-widest py-3.5 text-xs gap-2"
           >
+            <UserPlus className="w-4 h-4" />
             Create Account
           </Button>
         </form>
 
-        <div className="text-center text-xs text-slate-400 border-t border-slate-100 dark:border-brand-850 pt-4">
+        <div className="divider-gold" />
+
+        <div className="text-center text-xs text-silver-400">
           Already have a dealership account?{' '}
-          <Link
-            to="/login"
-            className="font-bold text-brand-600 hover:text-brand-500 dark:text-accent-400 dark:hover:text-accent-300 transition-colors"
-          >
-            Sign In Here
+          <Link to="/login" className="font-bold text-gold-400 hover:text-gold-300 transition-colors">
+            Sign In Here →
           </Link>
         </div>
       </div>

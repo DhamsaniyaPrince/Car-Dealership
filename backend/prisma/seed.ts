@@ -34,11 +34,11 @@ async function main() {
     },
   });
 
-  // Seed Vehicles inventory
+  // Seed Vehicles inventory - expanded with diverse premium cars
   const vehiclesData = [
     {
       make: 'Tesla',
-      model: 'Model Y',
+      model: 'Model Y Long Range',
       category: 'Electric SUV',
       price: 47990.00,
       quantity: 5,
@@ -46,23 +46,23 @@ async function main() {
     },
     {
       make: 'Ford',
-      model: 'Mustang Mach-E',
+      model: 'Mustang Mach-E GT',
       category: 'Electric Crossover',
-      price: 42995.00,
+      price: 59995.00,
       quantity: 3,
       createdById: admin.id,
     },
     {
       make: 'Porsche',
-      model: 'Taycan',
+      model: 'Taycan Cross Turismo',
       category: 'Electric Sport',
-      price: 90900.00,
+      price: 101900.00,
       quantity: 2,
       createdById: admin.id,
     },
     {
       make: 'Toyota',
-      model: 'RAV4 Prime',
+      model: 'RAV4 Prime Hybrid',
       category: 'Hybrid SUV',
       price: 43440.00,
       quantity: 7,
@@ -70,12 +70,92 @@ async function main() {
     },
     {
       make: 'BMW',
-      model: 'i4',
+      model: 'i4 M50 Gran Coupe',
       category: 'Electric Sedan',
-      price: 52200.00,
+      price: 69700.00,
       quantity: 4,
       createdById: admin.id,
     },
+    {
+      make: 'Porsche',
+      model: '911 Carrera GTS',
+      category: 'Performance Coupe',
+      price: 150000.00,
+      quantity: 1,
+      createdById: admin.id,
+    },
+    {
+      make: 'Chevrolet',
+      model: 'Corvette C8 Stingray',
+      category: 'Performance Coupe',
+      price: 68300.00,
+      quantity: 2,
+      createdById: admin.id,
+    },
+    {
+      make: 'Audi',
+      model: 'e-tron GT RS',
+      category: 'Electric Sport',
+      price: 106500.00,
+      quantity: 2,
+      createdById: admin.id,
+    },
+    {
+      make: 'Mercedes-Benz',
+      model: 'AMG GT 53',
+      category: 'Performance Sedan',
+      price: 113500.00,
+      quantity: 3,
+      createdById: admin.id,
+    },
+    {
+      make: 'BMW',
+      model: 'M4 Competition',
+      category: 'Performance Coupe',
+      price: 78100.00,
+      quantity: 4,
+      createdById: admin.id,
+    },
+    {
+      make: 'Ford',
+      model: 'Mustang Dark Horse',
+      category: 'Performance Coupe',
+      price: 59270.00,
+      quantity: 5,
+      createdById: admin.id,
+    },
+    {
+      make: 'Toyota',
+      model: 'GR Supra 3.0',
+      category: 'Performance Coupe',
+      price: 54500.00,
+      quantity: 3,
+      createdById: admin.id,
+    },
+    {
+      make: 'Audi',
+      model: 'Q8 e-tron',
+      category: 'Electric SUV',
+      price: 74400.00,
+      quantity: 6,
+      createdById: admin.id,
+    },
+    {
+      make: 'Tesla',
+      model: 'Model S Plaid',
+      category: 'Electric Sedan',
+      price: 89990.00,
+      quantity: 2,
+      createdById: admin.id,
+    },
+    {
+      make: 'Dodge',
+      model: 'Charger SRT Hellcat',
+      category: 'Performance Sedan',
+      price: 82650.00,
+      quantity: 2,
+      createdById: admin.id,
+    }
   ];
 
   for (const vehicle of vehiclesData) {

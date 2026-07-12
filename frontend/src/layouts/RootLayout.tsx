@@ -20,6 +20,11 @@ import {
   CreditCard,
   Check,
   Printer,
+  ArrowUp,
+  MapPin,
+  Phone,
+  Clock,
+  Shield,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dropdown, Button, Modal } from '../components/UI';
@@ -47,15 +52,14 @@ export const RootLayout: React.FC = () => {
   const { toast } = useToast();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // E-commerce states
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'billing'>('cart');
-  
-  // Billing form states
+
   const [cardName, setCardName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -64,23 +68,20 @@ export const RootLayout: React.FC = () => {
   const [purchasePending, setPurchasePending] = useState(false);
   const [purchaseInvoice, setPurchaseInvoice] = useState<any | null>(null);
 
-  // Notification states
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  const handlePrintInvoice = () => {
-    window.print();
-  };
+  const handlePrintInvoice = () => window.print();
 
-  // Scroll listener for sticky header
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const y = window.scrollY;
+      setScrolled(y > 30);
+      setShowScrollTop(y > 500);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Sync Cart and Notifications on mount
   useEffect(() => {
     const loadState = () => {
       const savedCart = localStorage.getItem('dealership_cart');
@@ -90,7 +91,6 @@ export const RootLayout: React.FC = () => {
       if (savedNotifs) {
         setNotifications(JSON.parse(savedNotifs));
       } else {
-        // Seed default system notification
         const initial = [
           {
             id: 'notif-1',
@@ -104,15 +104,14 @@ export const RootLayout: React.FC = () => {
         localStorage.setItem('dealership_notifications', JSON.stringify(initial));
       }
     };
-    
+
     loadState();
 
-    // Listen to custom window events for active synchronization
     const handleCartSync = () => {
       const savedCart = localStorage.getItem('dealership_cart');
       if (savedCart) {
         setCart(JSON.parse(savedCart));
-        setCartOpen(true); // Auto slide open cart on adding item!
+        setCartOpen(true);
         setCheckoutStep('cart');
       }
     };
@@ -124,7 +123,6 @@ export const RootLayout: React.FC = () => {
 
     window.addEventListener('cart-updated', handleCartSync);
     window.addEventListener('notifications-updated', handleNotifSync);
-
     return () => {
       window.removeEventListener('cart-updated', handleCartSync);
       window.removeEventListener('notifications-updated', handleNotifSync);
@@ -136,7 +134,7 @@ export const RootLayout: React.FC = () => {
       await logout();
       toast.success('Logged out successfully.');
       navigate('/');
-    } catch (err) {
+    } catch {
       toast.error('Logout error occurred.');
     }
   };
@@ -154,7 +152,6 @@ export const RootLayout: React.FC = () => {
     localStorage.setItem('dealership_notifications', JSON.stringify(updated));
   };
 
-  // Submit checkout purchase flow
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -163,23 +160,17 @@ export const RootLayout: React.FC = () => {
       navigate('/login');
       return;
     }
-
     if (!cardNumber || cardNumber.length < 16 || !cardCvv || !billingAddress) {
       toast.error('Please fill out valid payment details.');
       return;
     }
-
     setPurchasePending(true);
     try {
-      // Loop over items and trigger backend purchase endpoints
       for (const item of cart) {
         await api.post(`/vehicles/${item.id}/purchase`);
       }
-
-      // Record Order in LocalStorage
       const savedOrders = localStorage.getItem('dealership_orders') || '[]';
       const ordersList = JSON.parse(savedOrders);
-      
       const newOrders = cart.map((item) => ({
         id: `txn-${Math.floor(Math.random() * 90000) + 10000}`,
         make: item.make,
@@ -190,10 +181,8 @@ export const RootLayout: React.FC = () => {
         image: item.image,
         invoiceToken: `ELITE-TX-${Math.floor(Math.random() * 9000000) + 1000000}-NY`,
       }));
-
       localStorage.setItem('dealership_orders', JSON.stringify([...newOrders, ...ordersList]));
 
-      // Add Purchase Success Notification
       const notifItem = {
         id: `notif-${Date.now()}`,
         title: 'Order Confirmed',
@@ -205,21 +194,13 @@ export const RootLayout: React.FC = () => {
       setNotifications(updatedNotifs);
       localStorage.setItem('dealership_notifications', JSON.stringify(updatedNotifs));
 
-      // Open Invoice Details
       setPurchaseInvoice(newOrders[0]);
-      
-      // Clear Cart
       setCart([]);
       localStorage.removeItem('dealership_cart');
-      
       toast.success('Purchase complete! Receipt generated.');
       setCartOpen(false);
       setCheckoutStep('cart');
-      setCardName('');
-      setCardNumber('');
-      setCardExpiry('');
-      setCardCvv('');
-      setBillingAddress('');
+      setCardName(''); setCardNumber(''); setCardExpiry(''); setCardCvv(''); setBillingAddress('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Transaction failed. Stock allocation unavailable.');
     } finally {
@@ -235,95 +216,133 @@ export const RootLayout: React.FC = () => {
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;
   const isActive = (path: string) => location.pathname === path;
 
+  const navLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/vehicles', label: 'Catalog' },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-brand-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
-      {/* 1. Header Navigation */}
-      <header
-        className={`sticky top-0 z-40 w-full transition-all duration-300 ${
+    <div className="flex flex-col min-h-screen bg-obsidian-900 text-silver-200 font-sans antialiased">
+
+      {/* ======================================================
+          HEADER — Premium frosted glass navbar
+         ====================================================== */}
+      <motion.header
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className={`fixed top-0 z-40 w-full transition-all duration-500 ${
           scrolled
-            ? 'bg-white/80 dark:bg-brand-950/80 backdrop-blur-md shadow-lg border-b border-slate-200/60 dark:border-brand-900/60'
+            ? 'glass border-b border-white/6 shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
             : 'bg-transparent border-b border-transparent'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-18">
+
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-accent-600 dark:from-brand-500 dark:to-accent-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <Car className="w-5.5 h-5.5 text-white" />
-              </div>
-              <span className="font-black text-xl tracking-wider bg-gradient-to-r from-brand-800 via-brand-700 to-accent-600 dark:from-white dark:via-slate-200 dark:to-accent-400 bg-clip-text text-transparent">
-                DRIVEELITE
+            <Link to="/" className="flex items-center gap-3 group">
+              <motion.div
+                whileHover={{ rotate: 8, scale: 1.1 }}
+                transition={{ duration: 0.3 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center shadow-gold-sm"
+              >
+                <Car className="w-5 h-5 text-obsidian-900" />
+              </motion.div>
+              <span className="font-display font-black text-xl tracking-widest text-white">
+                DRIVE<span className="text-gradient-gold">ELITE</span>
               </span>
             </Link>
 
-            {/* Navigation links & controls */}
-            <div className="hidden md:flex items-center gap-6">
-              <nav className="flex items-center gap-6 mr-4">
-                <Link
-                  to="/"
-                  className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                    isActive('/') ? 'text-brand-600 dark:text-accent-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                  }`}
-                >
-                  Home
-                </Link>
-                <Link
-                  to="/vehicles"
-                  className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                    isActive('/vehicles') ? 'text-brand-600 dark:text-accent-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                  }`}
-                >
-                  Catalog
-                </Link>
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center gap-5">
+              <nav className="flex items-center gap-1">
+                {navLinks.map(({ to, label }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    className={`relative px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all duration-200 rounded-lg ${
+                      isActive(to)
+                        ? 'text-gold-400'
+                        : 'text-silver-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {label}
+                    {isActive(to) && (
+                      <motion.div
+                        layoutId="nav-indicator"
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-gold-500 rounded-full"
+                      />
+                    )}
+                  </Link>
+                ))}
               </nav>
 
-              {/* Cart trigger */}
-              <button
-                onClick={() => setCartOpen(true)}
-                className="relative p-2 rounded-lg text-slate-550 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-brand-900 transition-colors cursor-pointer"
-              >
-                <ShoppingCart className="w-5.5 h-5.5" />
-                {cart.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-brand-600 text-white rounded-full flex items-center justify-center text-xxs font-bold animate-pulse">
-                    {cart.length}
-                  </span>
-                )}
-              </button>
+              {/* Divider */}
+              <div className="w-px h-5 bg-white/10" />
 
-              {/* Notifications bell */}
+              {/* Cart button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setCartOpen(true)}
+                className="relative p-2 rounded-xl text-silver-400 hover:text-white hover:bg-white/8 transition-all duration-200 cursor-pointer"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <AnimatePresence>
+                  {cart.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gold-500 text-obsidian-900 rounded-full flex items-center justify-center text-[9px] font-black"
+                    >
+                      {cart.length}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Notifications */}
               <Dropdown
                 align="right"
                 trigger={
-                  <button className="relative p-2 rounded-lg text-slate-550 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-brand-900 transition-colors cursor-pointer">
-                    <Bell className="w-5.5 h-5.5" />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    className="relative p-2 rounded-xl text-silver-400 hover:text-white hover:bg-white/8 transition-all duration-200 cursor-pointer"
+                  >
+                    <Bell className="w-5 h-5" />
                     {unreadNotifsCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
+                      <motion.span
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"
+                      />
                     )}
-                  </button>
+                  </motion.button>
                 }
               >
-                <div className="w-64 max-h-80 flex flex-col">
-                  <div className="flex justify-between items-center px-4 py-2 border-b border-slate-100 dark:border-brand-850 bg-slate-50 dark:bg-brand-950">
-                    <span className="text-xxs font-bold text-slate-500 uppercase tracking-wider">Alert Logs</span>
+                <div className="w-72 max-h-80 flex flex-col">
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-white/6">
+                    <span className="text-xs font-bold text-silver-400 uppercase tracking-widest">Alerts</span>
                     {unreadNotifsCount > 0 && (
                       <button
                         onClick={markAllNotifsRead}
-                        className="text-xxs text-brand-600 dark:text-accent-500 hover:underline font-bold"
+                        className="text-xs text-gold-400 hover:text-gold-300 font-bold cursor-pointer"
                       >
                         Read All
                       </button>
                     )}
                   </div>
-                  <div className="overflow-y-auto max-h-60 divide-y divide-slate-100 dark:divide-brand-850">
+                  <div className="overflow-y-auto max-h-60 divide-y divide-white/4">
                     {notifications.length === 0 ? (
-                      <p className="text-xxs text-slate-400 text-center py-6 font-semibold">No active warnings.</p>
+                      <p className="text-xs text-silver-500 text-center py-6 font-medium">No active alerts.</p>
                     ) : (
                       notifications.map((n) => (
-                        <div key={n.id} className={`p-3 flex flex-col gap-0.5 text-xs hover:bg-slate-50/50 ${!n.read ? 'bg-brand-50/20' : ''}`}>
-                          <span className="font-bold text-slate-700 dark:text-slate-200">{n.title}</span>
-                          <p className="text-slate-450 text-xxs leading-normal">{n.desc}</p>
-                          <span className="text-slate-400 text-[10px] mt-1">{n.time}</span>
+                        <div key={n.id} className={`p-3.5 flex flex-col gap-1 hover:bg-white/3 transition-colors ${!n.read ? 'border-l-2 border-gold-500/50' : ''}`}>
+                          <span className="text-xs font-bold text-white">{n.title}</span>
+                          <p className="text-xs text-silver-500 leading-normal">{n.desc}</p>
+                          <span className="text-[10px] text-silver-600 font-medium">{n.time}</span>
                         </div>
                       ))
                     )}
@@ -331,88 +350,83 @@ export const RootLayout: React.FC = () => {
                 </div>
               </Dropdown>
 
-              {/* Profile dropdown */}
+              {/* Profile */}
               {user ? (
                 <Dropdown
                   trigger={
-                    <div className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-brand-900 transition-colors">
-                      <div className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-900 border border-brand-200/50 dark:border-brand-800 flex items-center justify-center font-bold text-brand-700 dark:text-brand-300 text-xs">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-white/8 transition-all cursor-pointer border border-white/8"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center font-black text-obsidian-900 text-xs shadow-gold-sm">
                         {(user.name ?? user.email ?? '?').charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        {user.name ?? user.email}
-                      </span>
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    </div>
+                      <span className="text-xs font-bold text-silver-200">{user.name ?? user.email}</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-silver-500" />
+                    </motion.div>
                   }
                 >
-                  <div className="px-4 py-2 border-b border-slate-100 dark:border-brand-850 bg-slate-50 dark:bg-brand-950">
-                    <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Role</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user.role}</p>
+                  <div className="px-4 py-3 border-b border-white/6">
+                    <p className="text-[10px] font-bold text-silver-600 uppercase tracking-widest">Role</p>
+                    <p className="text-xs font-bold text-gold-400 mt-0.5">{user.role}</p>
                   </div>
-                  <Link
-                    to="/profile"
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-655 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-brand-850"
-                  >
-                    <User className="w-4 h-4" /> My Dashboard
+                  <Link to="/profile" className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-silver-300 hover:text-white hover:bg-white/5 transition-colors">
+                    <User className="w-4 h-4 text-silver-500" /> My Dashboard
                   </Link>
                   {user.role === 'ADMIN' && (
-                    <Link
-                      to="/dashboard"
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-655 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-brand-850"
-                    >
-                      <LayoutDashboard className="w-4 h-4" /> Control Panel
+                    <Link to="/dashboard" className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-silver-300 hover:text-white hover:bg-white/5 transition-colors">
+                      <LayoutDashboard className="w-4 h-4 text-silver-500" /> Control Panel
                     </Link>
                   )}
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-xs font-bold text-red-655 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4" /> Sign Out
-                  </button>
+                  <div className="border-t border-white/6 mt-1 pt-1">
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/8 transition-colors cursor-pointer rounded-b-xl"
+                    >
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                  </div>
                 </Dropdown>
               ) : (
-                <div className="flex items-center gap-4">
-                  <Link
-                    to="/login"
-                    className="text-xs font-bold uppercase tracking-widest text-slate-655 hover:text-brand-600 dark:text-slate-350 transition-colors"
-                  >
+                <div className="flex items-center gap-3">
+                  <Link to="/login" className="text-xs font-bold uppercase tracking-widest text-silver-400 hover:text-white transition-colors">
                     Sign In
                   </Link>
-                  <Link
-                    to="/register"
-                    className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest bg-brand-655 text-white hover:bg-brand-700 dark:bg-accent-600 dark:hover:bg-accent-700 shadow-md transition-colors"
-                  >
-                    Register
+                  <Link to="/register">
+                    <Button variant="gold" size="sm" className="uppercase tracking-widest font-black text-xs px-5">
+                      Register
+                    </Button>
                   </Link>
                 </div>
               )}
             </div>
 
             {/* Mobile menu trigger */}
-            <div className="flex md:hidden items-center gap-4">
-              <button
+            <div className="flex md:hidden items-center gap-3">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setCartOpen(true)}
-                className="relative p-2 text-slate-550"
+                className="relative p-2 text-silver-400"
               >
-                <ShoppingCart className="w-5.5 h-5.5" />
+                <ShoppingCart className="w-5 h-5" />
                 {cart.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-brand-600 text-white rounded-full flex items-center justify-center text-xxs font-bold">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gold-500 text-obsidian-900 rounded-full flex items-center justify-center text-[9px] font-black">
                     {cart.length}
                   </span>
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setMobileDrawerOpen(true)}
-                className="p-2 rounded-lg text-slate-655 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-brand-900 cursor-pointer"
+                className="p-2 rounded-xl text-silver-300 hover:bg-white/8 border border-white/10 cursor-pointer"
               >
-                <Menu className="w-6 h-6" />
-              </button>
+                <Menu className="w-5 h-5" />
+              </motion.button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Slide-out Drawer */}
+        {/* Mobile Drawer */}
         <AnimatePresence>
           {mobileDrawerOpen && (
             <>
@@ -421,101 +435,79 @@ export const RootLayout: React.FC = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setMobileDrawerOpen(false)}
-                className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
+                className="fixed inset-0 z-40 bg-obsidian-950/80 backdrop-blur-sm md:hidden"
               />
-
               <motion.div
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
-                transition={{ type: 'tween', duration: 0.3 }}
-                className="fixed inset-y-0 right-0 z-50 w-72 max-w-sm bg-white dark:bg-brand-900 border-l border-slate-200 dark:border-brand-850 flex flex-col p-6 shadow-2xl md:hidden"
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="fixed inset-y-0 right-0 z-50 w-72 glass border-l border-white/6 flex flex-col p-6 shadow-premium md:hidden"
               >
-                <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-brand-850">
-                  <span className="font-extrabold text-sm text-slate-800 dark:text-white uppercase tracking-wider">
-                    Navigation
-                  </span>
-                  <button
+                <div className="flex items-center justify-between pb-6 border-b border-white/6">
+                  <span className="font-display font-black text-sm text-white uppercase tracking-wider">Menu</span>
+                  <motion.button
+                    whileTap={{ scale: 0.9, rotate: 90 }}
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="p-1 rounded-lg text-slate-450 hover:bg-slate-100 dark:hover:bg-brand-850 cursor-pointer"
+                    className="p-1.5 rounded-lg text-silver-400 hover:bg-white/8 cursor-pointer"
                   >
                     <X className="w-5 h-5" />
-                  </button>
+                  </motion.button>
                 </div>
 
-                <nav className="flex-grow py-6 flex flex-col gap-4">
-                  <Link
-                    to="/"
-                    onClick={() => setMobileDrawerOpen(false)}
-                    className={`px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
-                      isActive('/') ? 'bg-brand-50 text-brand-700 dark:bg-brand-850' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    Home
-                  </Link>
-                  <Link
-                    to="/vehicles"
-                    onClick={() => setMobileDrawerOpen(false)}
-                    className={`px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
-                      isActive('/vehicles') ? 'bg-brand-50 text-brand-700 dark:bg-brand-850' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    Catalog
-                  </Link>
+                <nav className="flex-grow py-6 flex flex-col gap-1">
+                  {navLinks.map(({ to, label }, i) => (
+                    <motion.div
+                      key={to}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.07 }}
+                    >
+                      <Link
+                        to={to}
+                        onClick={() => setMobileDrawerOpen(false)}
+                        className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+                          isActive(to)
+                            ? 'bg-gold-500/10 text-gold-400 border border-gold-500/20'
+                            : 'text-silver-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </Link>
+                    </motion.div>
+                  ))}
                 </nav>
 
-                <div className="pt-6 border-t border-slate-100 dark:border-brand-850 flex flex-col gap-4">
+                <div className="pt-6 border-t border-white/6 flex flex-col gap-3">
                   {user ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3 px-2 py-1 bg-slate-50 dark:bg-brand-950 rounded-lg">
-                        <div className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs uppercase">
+                    <>
+                      <div className="flex items-center gap-3 p-3 bg-white/4 rounded-xl border border-white/6">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center font-black text-obsidian-900 text-sm">
                           {(user.name ?? user.email ?? '?').charAt(0)}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{user.name ?? user.email}</span>
-                          <span className="text-xxs text-slate-400 font-bold uppercase">{user.role}</span>
+                        <div>
+                          <p className="text-sm font-bold text-white">{user.name ?? user.email}</p>
+                          <p className="text-[10px] text-gold-500 font-bold uppercase tracking-widest">{user.role}</p>
                         </div>
                       </div>
-                      <Link
-                        to="/profile"
-                        onClick={() => setMobileDrawerOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-slate-300 dark:border-brand-800 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50"
-                      >
+                      <Link to="/profile" onClick={() => setMobileDrawerOpen(false)} className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-white/12 rounded-xl text-xs font-bold uppercase tracking-wider text-silver-300 hover:bg-white/5 transition-colors">
                         <User className="w-4 h-4" /> My Dashboard
                       </Link>
                       {user.role === 'ADMIN' && (
-                        <Link
-                          to="/dashboard"
-                          onClick={() => setMobileDrawerOpen(false)}
-                          className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-slate-300 dark:border-brand-800 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50"
-                        >
+                        <Link to="/dashboard" onClick={() => setMobileDrawerOpen(false)} className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-white/12 rounded-xl text-xs font-bold uppercase tracking-wider text-silver-300 hover:bg-white/5 transition-colors">
                           <LayoutDashboard className="w-4 h-4" /> Control Panel
                         </Link>
                       )}
-                      <button
-                        onClick={() => {
-                          setMobileDrawerOpen(false);
-                          handleLogout();
-                        }}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-red-50 text-red-655 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-100 transition-colors cursor-pointer"
-                      >
+                      <button onClick={() => { setMobileDrawerOpen(false); handleLogout(); }} className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-red-500/15 transition-colors">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
-                    </div>
+                    </>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <Link
-                        to="/login"
-                        onClick={() => setMobileDrawerOpen(false)}
-                        className="text-center px-4 py-3 border border-slate-300 dark:border-brand-800 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300"
-                      >
+                      <Link to="/login" onClick={() => setMobileDrawerOpen(false)} className="text-center px-4 py-2.5 border border-white/12 rounded-xl text-xs font-bold uppercase tracking-wider text-silver-300 hover:bg-white/5">
                         Sign In
                       </Link>
-                      <Link
-                        to="/register"
-                        onClick={() => setMobileDrawerOpen(false)}
-                        className="text-center px-4 py-3 bg-brand-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-brand-700 shadow-md"
-                      >
+                      <Link to="/register" onClick={() => setMobileDrawerOpen(false)} className="text-center px-4 py-2.5 bg-gradient-to-r from-gold-600 to-gold-500 text-obsidian-900 rounded-xl text-xs font-black uppercase tracking-wider shadow-gold-sm">
                         Register
                       </Link>
                     </div>
@@ -525,85 +517,106 @@ export const RootLayout: React.FC = () => {
             </>
           )}
         </AnimatePresence>
-      </header>
+      </motion.header>
 
-      {/* Shopping Cart Drawer slide-out */}
+      {/* ======================================================
+          CART DRAWER
+         ====================================================== */}
       <AnimatePresence>
         {cartOpen && (
           <>
-            {/* Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setCartOpen(false)}
-              className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm"
+              className="fixed inset-0 z-50 bg-obsidian-950/80 backdrop-blur-sm"
             />
-
-            {/* Slider Container */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'tween', duration: 0.3 }}
-              className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-brand-900 border-l border-slate-200 dark:border-brand-850 flex flex-col shadow-2xl overflow-hidden"
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 glass border-l border-white/8 flex flex-col shadow-premium overflow-hidden"
             >
+              {/* Accent line */}
+              <div className="h-0.5 bg-gradient-to-r from-transparent via-gold-500 to-transparent" />
+
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-brand-850 bg-slate-50 dark:bg-brand-950">
-                <span className="font-extrabold text-sm text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <ShoppingCart className="w-5 h-5 text-brand-600 dark:text-accent-500" />
+              <div className="flex items-center justify-between p-6 border-b border-white/6">
+                <span className="font-display font-bold text-sm text-white uppercase tracking-wider flex items-center gap-2">
+                  <ShoppingCart className="w-4.5 h-4.5 text-gold-500" />
                   {checkoutStep === 'cart' ? 'Shopping Cart' : 'Checkout & Payment'}
                 </span>
-                <button
+                <motion.button
+                  whileHover={{ rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setCartOpen(false)}
-                  className="p-1 rounded-lg text-slate-450 hover:bg-slate-100 dark:hover:bg-brand-850 cursor-pointer"
+                  className="p-1.5 rounded-lg text-silver-500 hover:text-white hover:bg-white/8 cursor-pointer transition-colors"
                 >
                   <X className="w-5 h-5" />
-                </button>
+                </motion.button>
               </div>
 
-              {/* Dynamic steps */}
               {checkoutStep === 'cart' ? (
-                // Step 1: Cart Summary
                 <div className="flex-grow flex flex-col p-6 justify-between overflow-y-auto">
                   <div className="flex flex-col gap-4 overflow-y-auto no-scrollbar flex-grow pr-1">
                     {cart.length === 0 ? (
-                      <div className="text-center py-20 text-slate-400 text-xs font-semibold flex flex-col items-center gap-2">
-                        <ShoppingCart className="w-8 h-8 text-slate-300" />
-                        <span>Your shopping cart is empty.</span>
-                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-20 flex flex-col items-center gap-4"
+                      >
+                        <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                          <ShoppingCart className="w-7 h-7 text-silver-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-silver-400">Cart is empty</p>
+                          <p className="text-xs text-silver-600 mt-1">Browse our catalog to add vehicles</p>
+                        </div>
+                        <Button onClick={() => { setCartOpen(false); navigate('/vehicles'); }} variant="gold" size="sm" className="mt-2 uppercase tracking-widest font-black">
+                          Browse Catalog
+                        </Button>
+                      </motion.div>
                     ) : (
-                      cart.map((item) => (
-                        <div key={item.id} className="flex gap-4 border-b border-slate-50 dark:border-brand-850 pb-4 last:border-b-0">
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                      cart.map((item, i) => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.06 }}
+                          className="flex gap-4 pb-4 border-b border-white/6 last:border-0"
+                        >
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-obsidian-800 shrink-0 border border-white/6">
                             <img src={item.image} alt={item.model} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-grow flex flex-col justify-between">
                             <div className="flex justify-between items-start gap-2">
-                              <span className="text-xs font-bold text-slate-800 dark:text-white leading-tight truncate max-w-[150px]">
+                              <span className="text-xs font-bold text-white leading-tight truncate max-w-[150px]">
                                 {item.make} {item.model}
                               </span>
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => removeFromCart(item.id)}
-                                className="text-slate-350 hover:text-red-500 cursor-pointer p-0.5"
+                                className="text-silver-600 hover:text-red-400 cursor-pointer p-0.5 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              </motion.button>
                             </div>
                             <div className="flex justify-between items-baseline">
-                              <span className="text-xxs text-slate-400 font-bold uppercase">{item.category}</span>
-                              <span className="text-xs font-black text-brand-655 dark:text-accent-500">${item.price.toLocaleString()}</span>
+                              <span className="text-[10px] text-silver-500 font-bold uppercase tracking-widest">{item.category}</span>
+                              <span className="text-xs font-black text-gold-400">${item.price.toLocaleString()}</span>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       ))
                     )}
                   </div>
 
-                  {/* Calculations & CTA */}
                   {cart.length > 0 && (
-                    <div className="border-t border-slate-100 dark:border-brand-850 pt-5 mt-4 flex flex-col gap-3">
-                      <div className="flex flex-col gap-2 text-xxs font-bold uppercase text-slate-500">
+                    <div className="border-t border-white/6 pt-5 mt-4 flex flex-col gap-3">
+                      <div className="flex flex-col gap-2 text-xs font-semibold text-silver-500">
                         <div className="flex justify-between">
                           <span>Base Subtotal</span>
                           <span>${cartSubtotal.toLocaleString()}</span>
@@ -616,24 +629,18 @@ export const RootLayout: React.FC = () => {
                           <span>Registration / Doc Fee</span>
                           <span>${docFee}</span>
                         </div>
-                        <div className="flex justify-between text-slate-900 dark:text-white text-sm font-black border-t border-slate-100 dark:border-brand-850 pt-3">
+                        <div className="flex justify-between text-white text-sm font-black border-t border-white/6 pt-3 mt-1">
                           <span>Total Amount</span>
-                          <span>${cartTotal.toLocaleString()}</span>
+                          <span className="text-gradient-gold">${cartTotal.toLocaleString()}</span>
                         </div>
                       </div>
-
                       <Button
                         onClick={() => {
-                          if (!user) {
-                            toast.info('Please sign in to continue.');
-                            setCartOpen(false);
-                            navigate('/login');
-                          } else {
-                            setCheckoutStep('billing');
-                          }
+                          if (!user) { toast.info('Please sign in to continue.'); setCartOpen(false); navigate('/login'); }
+                          else setCheckoutStep('billing');
                         }}
-                        variant="accent"
-                        className="w-full font-bold uppercase text-xs tracking-wider py-3.5 mt-2 gap-1.5"
+                        variant="gold"
+                        className="w-full font-black uppercase tracking-widest text-xs py-3.5 mt-1 gap-2"
                       >
                         <CreditCard className="w-4 h-4" /> Proceed to Checkout
                       </Button>
@@ -641,99 +648,57 @@ export const RootLayout: React.FC = () => {
                   )}
                 </div>
               ) : (
-                // Step 2: Billing & Credit Card Details Form
                 <form onSubmit={handlePlaceOrder} className="flex-grow flex flex-col p-6 justify-between overflow-y-auto">
-                  <div className="flex flex-col gap-4 overflow-y-auto no-scrollbar flex-grow pr-1">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Cardholder Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                        placeholder="John Doe"
-                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Credit Card Number</label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={16}
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ''))}
-                        placeholder="4000123456789010"
-                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none font-mono"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Expiry Date</label>
+                  <div className="flex flex-col gap-4">
+                    {[
+                      { label: 'Cardholder Name', value: cardName, onChange: (v: string) => setCardName(v), placeholder: 'John Doe', type: 'text' },
+                      { label: 'Credit Card Number', value: cardNumber, onChange: (v: string) => setCardNumber(v.replace(/\D/g, '')), placeholder: '4000123456789010', type: 'text', maxLength: 16 },
+                    ].map((field) => (
+                      <div key={field.label} className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">{field.label}</label>
                         <input
-                          type="text"
+                          type={field.type}
                           required
-                          maxLength={5}
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="MM/YY"
-                          className="w-full px-3 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none font-mono"
+                          maxLength={field.maxLength}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          placeholder={field.placeholder}
+                          className="input-premium w-full px-3 py-2.5 rounded-xl text-xs"
                         />
                       </div>
+                    ))}
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">CVV Security</label>
-                        <input
-                          type="password"
-                          required
-                          maxLength={3}
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                          placeholder="•••"
-                          className="w-full px-3 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none font-mono"
-                        />
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">Expiry Date</label>
+                        <input type="text" required maxLength={5} value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} placeholder="MM/YY" className="input-premium w-full px-3 py-2.5 rounded-xl text-xs font-mono" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">CVV Security</label>
+                        <input type="password" required maxLength={3} value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))} placeholder="•••" className="input-premium w-full px-3 py-2.5 rounded-xl text-xs font-mono" />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Billing Address</label>
-                      <input
-                        type="text"
-                        required
-                        value={billingAddress}
-                        onChange={(e) => setBillingAddress(e.target.value)}
-                        placeholder="100 Elite Drive, New York, NY"
-                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                      />
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">Billing Address</label>
+                      <input type="text" required value={billingAddress} onChange={(e) => setBillingAddress(e.target.value)} placeholder="100 Elite Drive, New York, NY" className="input-premium w-full px-3 py-2.5 rounded-xl text-xs" />
                     </div>
                   </div>
 
-                  {/* Pricing and Submit */}
-                  <div className="border-t border-slate-100 dark:border-brand-850 pt-5 mt-4 flex flex-col gap-3">
-                    <div className="flex justify-between items-baseline text-xxs font-bold uppercase text-slate-500">
-                      <span>Total Amount due</span>
-                      <span className="text-sm font-black text-slate-900 dark:text-white">${cartTotal.toLocaleString()}</span>
+                  <div className="border-t border-white/6 pt-5 mt-4 flex flex-col gap-3">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs font-semibold text-silver-500 uppercase tracking-widest">Total Due</span>
+                      <span className="text-lg font-black text-gradient-gold">${cartTotal.toLocaleString()}</span>
                     </div>
-
                     <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCheckoutStep('cart')}
-                        className="flex-grow py-3 font-bold uppercase text-xs tracking-wider"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={purchasePending}
-                        isLoading={purchasePending}
-                        variant="accent"
-                        className="flex-grow py-3 font-bold uppercase text-xs tracking-wider"
-                      >
+                      <Button type="button" variant="secondary" onClick={() => setCheckoutStep('cart')} className="flex-grow py-3 text-xs uppercase tracking-widest font-bold">Back</Button>
+                      <Button type="submit" disabled={purchasePending} isLoading={purchasePending} variant="gold" className="flex-grow py-3 text-xs uppercase tracking-widest font-black">
                         Place Order
                       </Button>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-silver-600">
+                      <Shield className="w-3 h-3" />
+                      <span>256-bit SSL encrypted checkout</span>
                     </div>
                   </div>
                 </form>
@@ -743,38 +708,42 @@ export const RootLayout: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Invoice Success printable Modal */}
+      {/* Invoice Modal */}
       <Modal isOpen={!!purchaseInvoice} onClose={() => setPurchaseInvoice(null)} title="Purchase Confirmed">
         {purchaseInvoice && (
-          <div className="flex flex-col gap-6 text-slate-800 dark:text-slate-250">
-            <div className="text-center flex flex-col items-center gap-3">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 mb-2">
-                <Check className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Transaction Approved</h3>
-              <p className="text-xs text-slate-500 max-w-xs leading-normal">
-                Your purchase was recorded. Your receipt has been generated under invoice token **{purchaseInvoice.invoiceToken}**.
-              </p>
-            </div>
-
-            {/* Calculations specs */}
-            <div className="border-t border-b border-slate-100 dark:border-brand-850 py-4 flex flex-col gap-2 font-semibold text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Manufacturer Model</span>
-                <span>{purchaseInvoice.make} {purchaseInvoice.model}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Price</span>
-                <span>${purchaseInvoice.price.toLocaleString()}</span>
+          <div className="flex flex-col gap-6">
+            <div className="text-center flex flex-col items-center gap-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', bounce: 0.5 }}
+                className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center"
+              >
+                <Check className="w-8 h-8 text-emerald-400" />
+              </motion.div>
+              <div>
+                <h3 className="text-lg font-display font-bold text-white">Transaction Approved</h3>
+                <p className="text-xs text-silver-500 max-w-xs leading-relaxed mt-2">
+                  Purchase recorded. Invoice token:{' '}
+                  <span className="text-gold-400 font-mono font-bold">{purchaseInvoice.invoiceToken}</span>
+                </p>
               </div>
             </div>
 
-            {/* Printer Action */}
+            <div className="border-y border-white/6 py-4 flex flex-col gap-2.5 text-xs font-semibold">
+              <div className="flex justify-between">
+                <span className="text-silver-500">Model</span>
+                <span className="text-white">{purchaseInvoice.make} {purchaseInvoice.model}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-silver-500">Total Price</span>
+                <span className="text-gold-400 font-black">${purchaseInvoice.price.toLocaleString()}</span>
+              </div>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={() => setPurchaseInvoice(null)} variant="secondary" className="flex-grow py-3 font-bold uppercase text-xs tracking-wider">
-                Dismiss
-              </Button>
-              <Button onClick={handlePrintInvoice} variant="accent" className="flex-grow py-3 font-bold uppercase text-xs tracking-wider gap-2">
+              <Button onClick={() => setPurchaseInvoice(null)} variant="secondary" className="flex-grow py-3 text-xs uppercase tracking-widest font-bold">Dismiss</Button>
+              <Button onClick={handlePrintInvoice} variant="gold" className="flex-grow py-3 text-xs uppercase tracking-widest font-black gap-2">
                 <Printer className="w-4 h-4" /> Print Receipt
               </Button>
             </div>
@@ -782,120 +751,137 @@ export const RootLayout: React.FC = () => {
         )}
       </Modal>
 
-      {/* Main Page Workspace */}
-      <main className="flex-grow">
+      {/* Main content */}
+      <main className="flex-grow pt-[72px]">
         <Outlet />
       </main>
 
-      {/* Exhaustive Multi-Column Footer */}
-      <footer className="bg-slate-950 text-slate-400 border-t border-slate-900 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-12">
-          {/* Column 1: Brand Bio */}
-          <div className="flex flex-col gap-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-accent-500 flex items-center justify-center shadow-lg">
-                <Car className="w-4.5 h-4.5 text-white" />
+      {/* ======================================================
+          FOOTER — Cinematic premium footer
+         ====================================================== */}
+      <footer className="bg-obsidian-950 border-t border-white/5 pt-20 pb-8 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-24 bg-gradient-to-b from-gold-500/40 to-transparent" />
+        <div
+          className="absolute inset-0 pointer-events-none opacity-2"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(201,168,76,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.05) 1px, transparent 1px)',
+            backgroundSize: '80px 80px',
+          }}
+        />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+            {/* Brand column */}
+            <div className="flex flex-col gap-5 md:col-span-1">
+              <Link to="/" className="flex items-center gap-3 w-fit group">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center shadow-gold-sm">
+                  <Car className="w-5 h-5 text-obsidian-900" />
+                </div>
+                <span className="font-display font-black text-xl text-white tracking-widest">
+                  DRIVE<span className="text-gradient-gold">ELITE</span>
+                </span>
+              </Link>
+              <p className="text-xs text-silver-600 leading-relaxed max-w-xs">
+                The premier dealership management platform. Discover curated vehicles, manage real-time sales operations, and optimize your automotive experience.
+              </p>
+              <div className="flex gap-2 mt-1">
+                {[
+                  { icon: Twitter, href: '#' },
+                  { icon: Instagram, href: '#' },
+                  { icon: Facebook, href: '#' },
+                  { icon: Linkedin, href: '#' },
+                ].map(({ icon: Icon, href }, i) => (
+                  <motion.a
+                    key={i}
+                    href={href}
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-9 h-9 rounded-xl bg-white/4 border border-white/8 flex items-center justify-center text-silver-500 hover:text-gold-400 hover:bg-gold-500/10 hover:border-gold-500/20 transition-all duration-200 cursor-pointer"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </motion.a>
+                ))}
               </div>
-              <span className="font-black text-base text-white tracking-widest">DRIVEELITE</span>
-            </Link>
-            <p className="text-xs leading-relaxed text-slate-500">
-              The premier dealership management platform. Discover curated vehicles, manage
-              real-time sales operations, and optimize vehicle listings.
-            </p>
-            {/* Social Icons */}
-            <div className="flex gap-4 mt-2">
-              <a href="#" className="p-2 rounded-lg bg-slate-900 hover:bg-brand-600 hover:text-white transition-all text-slate-500">
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-slate-900 hover:bg-brand-600 hover:text-white transition-all text-slate-500">
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-slate-900 hover:bg-brand-600 hover:text-white transition-all text-slate-500">
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-slate-900 hover:bg-brand-600 hover:text-white transition-all text-slate-500">
-                <Linkedin className="w-4 h-4" />
-              </a>
+            </div>
+
+            {/* Company */}
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-5">Company</h4>
+              <ul className="space-y-3">
+                {['About DriveElite', 'Dealership Fleet', 'Careers', 'Press & Media'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-xs text-silver-600 hover:text-gold-400 transition-colors duration-200">{item}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-5">Resources</h4>
+              <ul className="space-y-3">
+                <li><Link to="/vehicles" className="text-xs text-silver-600 hover:text-gold-400 transition-colors">Fleet Catalog</Link></li>
+                {['Special Offers', 'Financing Models', 'Help Center & FAQ'].map((item) => (
+                  <li key={item}><a href="#" className="text-xs text-silver-600 hover:text-gold-400 transition-colors">{item}</a></li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-5">Contact & Hours</h4>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="w-3.5 h-3.5 text-gold-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-silver-600 leading-relaxed">100 Elite Drive, Suite 500<br />New York, NY 10001</p>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-3.5 h-3.5 text-gold-500 shrink-0" />
+                  <p className="text-xs text-silver-600">+1 (212) 555-0199</p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Clock className="w-3.5 h-3.5 text-gold-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-silver-600 leading-relaxed">Mon – Sat: 9:00 AM – 7:00 PM<br />Sun: Closed</p>
+                </div>
+                <Link to="/login" className="inline-flex items-center gap-1 text-xs font-bold text-gold-500 hover:text-gold-400 transition-colors mt-1">
+                  Portal Login →
+                </Link>
+              </div>
             </div>
           </div>
 
-          {/* Column 2: Company */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">
-              Company
-            </h4>
-            <ul className="space-y-3 text-xs">
-              <li>
-                <a href="#" className="hover:text-white transition-colors">About DriveElite</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Dealership Fleet</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Careers</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Press & Media</a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 3: Resources */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">
-              Resources
-            </h4>
-            <ul className="space-y-3 text-xs">
-              <li>
-                <Link to="/vehicles" className="hover:text-white transition-colors">Fleet Catalog</Link>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Special Offers</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Financing Models</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">Help Center & FAQ</a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 4: Contact & Legal */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">
-              Contact & Hours
-            </h4>
-            <p className="text-xs text-slate-500 leading-relaxed mb-2">
-              Corporate Office: <br />
-              100 Elite Drive, Suite 500 <br />
-              New York, NY 10001
+          {/* Bottom bar */}
+          <div className="divider-gold mb-6" />
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-silver-700">
+              © {new Date().getFullYear()} DriveElite Dealerships. All rights reserved.
             </p>
-            <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Mon - Sat: 9:00 AM - 7:00 PM <br />
-              Sun: Closed
-            </p>
-            <Link
-              to="/login"
-              className="text-xs font-bold text-accent-500 hover:text-accent-400 transition-colors inline-flex items-center gap-1"
-            >
-              Portal Login &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Legal bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-650">
-            &copy; {new Date().getFullYear()} DriveElite Dealerships. All rights reserved.
-          </p>
-          <div className="flex gap-6 text-xs text-slate-650">
-            <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-400 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-slate-400 cursor-pointer">Cookie Settings</span>
+            <div className="flex gap-5 text-xs text-silver-700">
+              {['Privacy Policy', 'Terms of Service', 'Cookie Settings'].map((item) => (
+                <span key={item} className="hover:text-gold-500 cursor-pointer transition-colors">{item}</span>
+              ))}
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* Scroll to top button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            whileHover={{ scale: 1.1, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-6 right-6 z-30 w-11 h-11 rounded-xl bg-gold-500 text-obsidian-900 flex items-center justify-center shadow-gold-md cursor-pointer"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

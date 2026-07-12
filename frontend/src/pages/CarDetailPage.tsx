@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Button, Card, Modal, Badge } from '../components/UI';
+import { Button, Badge, Modal, SectionLabel, Skeleton, Select } from '../components/UI';
 import { getVehicleExtendedSpecs } from '../utils/specs';
 import {
   ArrowLeft,
@@ -18,6 +18,11 @@ import {
   Percent,
   Star,
   ThumbsUp,
+  Fuel,
+  Zap,
+  Shield,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,16 +43,13 @@ export const CarDetailPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Local UX States
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [show360, setShow360] = useState(false);
-  const [dragRotation, setDragRotation] = useState(0); 
+  const [dragRotation, setDragRotation] = useState(0);
 
-  // Wishlist Compare States
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
 
-  // Test Drive Modal States
   const [testDriveOpen, setTestDriveOpen] = useState(false);
   const [tdDate, setTdDate] = useState('');
   const [tdTime, setTdTime] = useState('10:00 AM');
@@ -55,18 +57,15 @@ export const CarDetailPage: React.FC = () => {
   const [tdName, setTdName] = useState('');
   const [tdEmail, setTdEmail] = useState('');
 
-  // EMI Calculator States
   const [downPaymentPct, setDownPaymentPct] = useState(20);
   const [interestRate, setInterestRate] = useState(4.9);
   const [loanTerm, setLoanTerm] = useState(60);
 
-  // Review states
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [reviewsSort, setReviewsSort] = useState('newest');
 
-  // 1. Query vehicle database record
   const { data: vehicle, isLoading, error } = useQuery({
     queryKey: ['vehicle', id],
     queryFn: async () => {
@@ -75,7 +74,6 @@ export const CarDetailPage: React.FC = () => {
     },
   });
 
-  // Query database catalog for Similar Vehicles recommendation
   const { data: similarVehicles } = useQuery({
     queryKey: ['similarVehiclesList', vehicle?.category],
     enabled: !!vehicle,
@@ -88,18 +86,15 @@ export const CarDetailPage: React.FC = () => {
     },
   });
 
-  // Mapped specifications
   const extendedSpecs = vehicle
     ? getVehicleExtendedSpecs(vehicle.make, vehicle.model, Number(vehicle.price), vehicle.id)
     : null;
 
-  // Initialize wishlist, compare, and reviews states on mount
   useEffect(() => {
     if (!id) return;
     const savedWishlist = localStorage.getItem('dealership_wishlist') || '[]';
     setIsWishlisted(JSON.parse(savedWishlist).includes(id));
 
-    // Load reviews from local storage or set defaults
     const savedReviews = localStorage.getItem(`dealership_reviews_${id}`);
     if (savedReviews) {
       setReviews(JSON.parse(savedReviews));
@@ -131,12 +126,10 @@ export const CarDetailPage: React.FC = () => {
     }
   }, [id]);
 
-  // Wishlist Toggle handler
   const handleWishlistToggle = () => {
     if (!id) return;
     const savedWishlist = localStorage.getItem('dealership_wishlist') || '[]';
     let wishlistList = JSON.parse(savedWishlist);
-    
     if (wishlistList.includes(id)) {
       wishlistList = wishlistList.filter((item: string) => item !== id);
       setIsWishlisted(false);
@@ -149,7 +142,6 @@ export const CarDetailPage: React.FC = () => {
     localStorage.setItem('dealership_wishlist', JSON.stringify(wishlistList));
   };
 
-  // Compare Toggle handler
   const handleCompareToggle = () => {
     setIsComparing(!isComparing);
     if (!isComparing) {
@@ -159,17 +151,14 @@ export const CarDetailPage: React.FC = () => {
     }
   };
 
-  // Add Item to Checkout Cart Drawer
   const handlePurchaseVehicle = () => {
     if (!vehicle || !extendedSpecs) return;
     const savedCart = localStorage.getItem('dealership_cart') || '[]';
     const cartItems = JSON.parse(savedCart);
-    
     if (cartItems.some((item: any) => item.id === vehicle.id)) {
       toast.info('This vehicle model is already in your shopping cart.');
       return;
     }
-
     const newItem = {
       id: vehicle.id,
       make: vehicle.make,
@@ -178,23 +167,19 @@ export const CarDetailPage: React.FC = () => {
       price: Number(vehicle.price),
       image: extendedSpecs.images[0],
     };
-
     localStorage.setItem('dealership_cart', JSON.stringify([...cartItems, newItem]));
     window.dispatchEvent(new Event('cart-updated'));
     toast.success('Added to checkout cart.');
   };
 
-  // Book Showroom Test Drive appointment
   const handleBookTestDrive = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tdDate || !tdName || !tdEmail || !vehicle) {
       toast.error('Please input all registration fields.');
       return;
     }
-
     const savedBookings = localStorage.getItem('dealership_bookings') || '[]';
     const bookingsList = JSON.parse(savedBookings);
-    
     const newBooking = {
       id: `td-${Math.floor(Math.random() * 90000) + 10000}`,
       model: `${vehicle.make} ${vehicle.model}`,
@@ -203,10 +188,7 @@ export const CarDetailPage: React.FC = () => {
       hub: tdHub,
       status: 'Scheduled',
     };
-
     localStorage.setItem('dealership_bookings', JSON.stringify([newBooking, ...bookingsList]));
-    
-    // Add Notification
     const savedNotifs = localStorage.getItem('dealership_notifications') || '[]';
     const notifItem = {
       id: `notif-${Date.now()}`,
@@ -217,7 +199,6 @@ export const CarDetailPage: React.FC = () => {
     };
     localStorage.setItem('dealership_notifications', JSON.stringify([notifItem, ...JSON.parse(savedNotifs)]));
     window.dispatchEvent(new Event('notifications-updated'));
-
     toast.success(`Test drive confirmed for ${tdDate} at ${tdTime}!`);
     setTestDriveOpen(false);
     setTdDate('');
@@ -225,7 +206,6 @@ export const CarDetailPage: React.FC = () => {
     setTdEmail('');
   };
 
-  // Add User Review
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -233,12 +213,10 @@ export const CarDetailPage: React.FC = () => {
       navigate('/login');
       return;
     }
-
     if (!newComment) {
       toast.error('Please type a comment.');
       return;
     }
-
     const newRev: ReviewItem = {
       id: `rev-${Date.now()}`,
       name: user.name,
@@ -249,43 +227,33 @@ export const CarDetailPage: React.FC = () => {
       likedBy: [],
       date: new Date().toISOString().slice(0, 10),
     };
-
     const updated = [newRev, ...reviews];
     setReviews(updated);
     localStorage.setItem(`dealership_reviews_${id}`, JSON.stringify(updated));
-    
     toast.success('Review submitted successfully.');
     setNewComment('');
     setNewRating(5);
   };
 
-  // Like Review
   const handleLikeReview = (reviewId: string) => {
     if (!user) {
       toast.info('Please sign in to like reviews.');
       return;
     }
-
     const updated = reviews.map((r) => {
       if (r.id === reviewId) {
         const hasLiked = r.likedBy.includes(user.email);
         const likedBy = hasLiked
           ? r.likedBy.filter((email) => email !== user.email)
           : [...r.likedBy, user.email];
-        return {
-          ...r,
-          likes: hasLiked ? r.likes - 1 : r.likes + 1,
-          likedBy,
-        };
+        return { ...r, likes: hasLiked ? r.likes - 1 : r.likes + 1, likedBy };
       }
       return r;
     });
-
     setReviews(updated);
     localStorage.setItem(`dealership_reviews_${id}`, JSON.stringify(updated));
   };
 
-  // Verify if active user email has purchased this vehicle model
   const isVerifiedBuyer = useMemo(() => {
     if (!user) return false;
     const savedOrders = localStorage.getItem('dealership_orders') || '[]';
@@ -293,7 +261,6 @@ export const CarDetailPage: React.FC = () => {
     return orders.some((o: any) => o.model === `${vehicle?.make} ${vehicle?.model}`);
   }, [user, vehicle]);
 
-  // Sorted reviews list
   const sortedReviews = useMemo(() => {
     return [...reviews].sort((a, b) => {
       if (reviewsSort === 'highest') return b.rating - a.rating;
@@ -313,10 +280,8 @@ export const CarDetailPage: React.FC = () => {
     const downPayment = (price * downPaymentPct) / 100;
     const principal = price - downPayment;
     if (principal <= 0) return 0;
-    
     const monthlyRate = interestRate / 100 / 12;
     const numberOfPayments = loanTerm;
-    
     if (monthlyRate === 0) return principal / numberOfPayments;
     const payment =
       (principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments))) /
@@ -326,19 +291,31 @@ export const CarDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-600"></div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col gap-8">
+        <Skeleton className="h-10 w-48 rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <Skeleton className="h-[400px] rounded-2xl" />
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-10 w-3/4 rounded-xl" />
+            <Skeleton className="h-6 w-1/3 rounded-xl" />
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error || !vehicle || !extendedSpecs) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-        <h2 className="text-xl font-bold text-red-500">Vehicle Not Found</h2>
-        <p className="text-slate-400 mt-2">The specifications you requested might have been sold or removed.</p>
-        <Link to="/vehicles" className="mt-6 inline-block">
-          <Button variant="outline">Back to Catalog</Button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center flex flex-col items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+          <Shield className="w-7 h-7 text-red-400" />
+        </div>
+        <h2 className="font-display font-black text-xl text-white uppercase tracking-wider">Vehicle Not Found</h2>
+        <p className="text-silver-500 text-sm">The specifications you requested might have been sold or removed.</p>
+        <Link to="/vehicles" className="mt-2">
+          <Button variant="outline" className="font-bold uppercase tracking-widest text-xs">Back to Catalog</Button>
         </Link>
       </div>
     );
@@ -348,35 +325,37 @@ export const CarDetailPage: React.FC = () => {
   const emiValue = Math.round(calculateEMI());
 
   const detailSpecsList = [
-    { label: 'Power Output', value: `${extendedSpecs.horsepower} horsepower` },
-    { label: 'Torque Force', value: `${extendedSpecs.torque} lb-ft` },
-    { label: 'Fuel Efficiency', value: extendedSpecs.fuelEconomy },
-    { label: 'Year Built', value: String(extendedSpecs.year) },
-    { label: 'Mileage Logged', value: `${extendedSpecs.mileage.toLocaleString()} miles` },
-    { label: 'Warranty Coverage', value: extendedSpecs.warranty },
-    { label: 'Authorized Dealer', value: 'DriveElite Corporate, NY' },
+    { label: 'Power Output', value: `${extendedSpecs.horsepower} hp`, icon: Zap },
+    { label: 'Torque Force', value: `${extendedSpecs.torque} lb-ft`, icon: Gauge },
+    { label: 'Fuel Efficiency', value: extendedSpecs.fuelEconomy, icon: Fuel },
+    { label: 'Year Built', value: String(extendedSpecs.year), icon: Calendar },
+    { label: 'Mileage Logged', value: `${extendedSpecs.mileage.toLocaleString()} mi`, icon: Gauge },
+    { label: 'Warranty Coverage', value: extendedSpecs.warranty, icon: Shield },
+    { label: 'Authorized Dealer', value: 'DriveElite Corporate, NY', icon: ChevronRight },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col gap-10">
-      {/* Page Header Breadcrumbs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-brand-900 pb-5">
+
+      {/* Breadcrumbs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/6">
         <Link
           to="/vehicles"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-600 dark:hover:text-accent-400 transition-colors uppercase tracking-wider"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-silver-500 hover:text-gold-400 transition-colors uppercase tracking-widest"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Directory
         </Link>
-        <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-          Catalog &gt; {vehicle.make} &gt; {vehicle.model}
+        <span className="text-[10px] font-bold text-silver-700 uppercase tracking-widest flex items-center gap-1">
+          Catalog <ChevronRight className="w-3 h-3" /> {vehicle.make} <ChevronRight className="w-3 h-3" /> {vehicle.model}
         </span>
       </div>
 
-      {/* Media and Detail Grid */}
+      {/* Media + Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        {/* Media Block (Gallery + 360 TurnTable) */}
+
+        {/* Gallery */}
         <div className="flex flex-col gap-4">
-          <div className="relative h-[400px] bg-slate-900 border border-slate-200 dark:border-brand-850 rounded-2xl overflow-hidden shadow-md">
+          <div className="relative h-[420px] bg-obsidian-900 border border-white/8 rounded-2xl overflow-hidden shadow-2xl">
             <AnimatePresence mode="wait">
               {show360 ? (
                 <motion.div
@@ -384,7 +363,7 @@ export const CarDetailPage: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-955 relative cursor-grab active:cursor-grabbing select-none"
+                  className="w-full h-full flex flex-col items-center justify-center p-6 bg-obsidian-950 relative cursor-grab active:cursor-grabbing select-none"
                 >
                   <motion.div
                     drag="x"
@@ -392,21 +371,21 @@ export const CarDetailPage: React.FC = () => {
                     dragElastic={0.1}
                     onDrag={(_, info) => setDragRotation(info.offset.x % 360)}
                     animate={{ rotateY: dragRotation }}
-                    className="w-72 h-44 bg-[url('https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80')] bg-cover bg-center rounded-xl shadow-2xl border border-slate-800"
+                    className="w-72 h-44 bg-cover bg-center rounded-xl shadow-2xl border border-white/10"
+                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80')` }}
                   />
                   <div className="absolute bottom-6 text-center">
-                    <span className="text-xxs font-black text-accent-500 uppercase tracking-widest">
-                      Drag left/right to rotate turntable
-                    </span>
-                    <p className="text-slate-550 text-xxs mt-0.5">Turntable degrees: {Math.round(dragRotation)}°</p>
+                    <span className="text-[10px] font-black text-gold-400 uppercase tracking-widest">Drag left/right to rotate</span>
+                    <p className="text-silver-600 text-[10px] mt-0.5 font-mono">{Math.round(dragRotation)}° rotation</p>
                   </div>
                 </motion.div>
               ) : (
                 <motion.img
-                  key="gallery"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  key={activeImageIdx}
+                  initial={{ opacity: 0, scale: 1.03 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
                   src={extendedSpecs.images[activeImageIdx]}
                   alt={vehicle.model}
                   className="w-full h-full object-cover"
@@ -414,237 +393,286 @@ export const CarDetailPage: React.FC = () => {
               )}
             </AnimatePresence>
 
-            <span
-              className={`absolute top-4 left-4 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white ${
-                isOutOfStock ? 'bg-red-655' : 'bg-emerald-600'
-              }`}
-            >
-              {isOutOfStock ? 'Sold Out' : 'Ready for pickup'}
+            {/* Gradient overlay bottom */}
+            <div className="absolute inset-0 bg-gradient-to-t from-obsidian-950/60 via-transparent to-transparent pointer-events-none" />
+
+            {/* Stock badge */}
+            <span className={`absolute top-4 left-4 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white border ${
+              isOutOfStock ? 'bg-red-500/20 border-red-500/30 text-red-400' : 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+            }`}>
+              {isOutOfStock ? 'Sold Out' : '✦ Ready for Pickup'}
             </span>
 
+            {/* 360 button */}
             <button
               onClick={() => setShow360(!show360)}
-              className="absolute bottom-4 right-4 px-4 py-2 bg-slate-950/80 backdrop-blur-md border border-slate-800 hover:bg-slate-900 text-white rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              className="absolute bottom-4 right-4 px-4 py-2 bg-obsidian-950/80 backdrop-blur-md border border-white/15 hover:border-gold-500/30 hover:bg-gold-500/10 text-white hover:text-gold-400 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer"
             >
-              {show360 ? 'View Gallery' : 'Interactive 360° Studio'}
+              {show360 ? '← Gallery View' : '⟳ 360° Studio'}
             </button>
           </div>
 
+          {/* Thumbnail strip */}
           {!show360 && (
             <div className="grid grid-cols-3 gap-3">
               {extendedSpecs.images.map((img, i) => (
-                <button
+                <motion.button
                   key={i}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setActiveImageIdx(i)}
-                  className={`h-24 rounded-xl overflow-hidden border-2 cursor-pointer transition-all bg-slate-55 ${
-                    activeImageIdx === i ? 'border-brand-600 dark:border-accent-500' : 'border-transparent opacity-70 hover:opacity-100'
+                  className={`h-24 rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
+                    activeImageIdx === i
+                      ? 'border-gold-500 shadow-gold-sm'
+                      : 'border-white/8 opacity-60 hover:opacity-100 hover:border-white/20'
                   }`}
                 >
                   <img src={img} alt="thumbnail" className="w-full h-full object-cover" />
-                </button>
+                </motion.button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Specifications Detail Description Pane */}
+        {/* Spec pane */}
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-start gap-4">
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-800 dark:text-white uppercase tracking-tight">
-                {vehicle.make} {vehicle.model}
-              </h1>
-              <div className="flex items-center gap-2">
-                <button
+              <div>
+                <SectionLabel className="mb-2">{vehicle.category}</SectionLabel>
+                <h1 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight leading-tight">
+                  {vehicle.make} <span className="text-gradient-gold">{vehicle.model}</span>
+                </h1>
+              </div>
+
+              {/* Action icon buttons */}
+              <div className="flex items-center gap-2 shrink-0 mt-1">
+                <motion.button
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleWishlistToggle}
-                  className={`p-2 rounded-lg border border-slate-200 dark:border-brand-850 cursor-pointer text-slate-500 hover:text-accent-500 hover:bg-slate-50 dark:hover:bg-brand-900 transition-colors ${
-                    isWishlisted ? 'bg-amber-50 text-accent-500 dark:bg-brand-900 border-accent-500/30' : ''
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                    isWishlisted
+                      ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                      : 'bg-white/4 border-white/10 text-silver-500 hover:text-red-400 hover:border-red-500/20'
                   }`}
                 >
-                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-accent-500' : ''}`} />
-                </button>
-                <button
+                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-400' : ''}`} />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleCompareToggle}
-                  className={`p-2 rounded-lg border border-slate-200 dark:border-brand-850 cursor-pointer text-slate-500 hover:text-brand-600 hover:bg-slate-50 dark:hover:bg-brand-900 transition-colors ${
-                    isComparing ? 'bg-brand-50 text-brand-600 dark:bg-brand-900 border-brand-500/30' : ''
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                    isComparing
+                      ? 'bg-gold-500/15 border-gold-500/30 text-gold-400'
+                      : 'bg-white/4 border-white/10 text-silver-500 hover:text-gold-400 hover:border-gold-500/20'
                   }`}
                 >
                   <GitCompare className="w-4 h-4" />
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleShare}
-                  className="p-2 rounded-lg border border-slate-200 dark:border-brand-850 cursor-pointer text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-brand-900 transition-colors"
+                  className="p-2.5 rounded-xl border border-white/10 bg-white/4 cursor-pointer text-silver-500 hover:text-white hover:border-white/20 transition-all"
                 >
                   <Share2 className="w-4 h-4" />
-                </button>
+                </motion.button>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 mt-2">
-              <span className="text-2xl font-black text-brand-655 dark:text-accent-500">
+            {/* Rating */}
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, si) => (
+                  <Star key={si} className={`w-3.5 h-3.5 ${si < Math.floor(extendedSpecs.rating) ? 'text-amber-400 fill-amber-400' : 'text-silver-700'}`} />
+                ))}
+              </div>
+              <span className="text-xs text-silver-500 font-medium">({extendedSpecs.reviewsCount} reviews)</span>
+            </div>
+
+            {/* Price */}
+            <div className="flex items-center gap-4 mt-2 pb-5 border-b border-white/6">
+              <span className="text-3xl font-display font-black text-gradient-gold">
                 ${Number(vehicle.price).toLocaleString()}
               </span>
-              <div className="h-4 w-[1px] bg-slate-300 dark:bg-brand-800" />
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                <Gauge className="w-4 h-4 text-slate-400" /> Category: {vehicle.category}
+              <div className="h-5 w-px bg-white/10" />
+              <span className="text-xs font-bold text-silver-500 flex items-center gap-1">
+                <Gauge className="w-3.5 h-3.5 text-silver-600" /> Stock: {vehicle.quantity} units
               </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 border-y border-slate-100 dark:border-brand-850 py-5">
+          {/* CTA Buttons */}
+          <div className="flex flex-wrap gap-3">
             {!isOutOfStock ? (
               <Button
                 onClick={handlePurchaseVehicle}
-                variant="accent"
-                className="px-8 py-3.5 uppercase font-bold tracking-wider text-xs gap-2 flex-grow sm:flex-grow-0"
+                variant="gold"
+                className="flex-grow sm:flex-grow-0 px-8 py-3.5 uppercase font-black tracking-widest text-xs gap-2"
               >
-                Add to Cart <ShoppingBag className="w-4.5 h-4.5" />
+                <ShoppingBag className="w-4 h-4" /> Add to Cart
               </Button>
             ) : (
-              <Badge variant="danger" className="px-8 py-3.5 flex items-center justify-center font-bold text-xs uppercase">
+              <div className="flex-grow sm:flex-grow-0 px-8 py-3.5 flex items-center justify-center rounded-xl border border-red-500/20 bg-red-500/8 text-red-400 text-xs font-bold uppercase tracking-widest">
                 Sold Out
-              </Badge>
+              </div>
             )}
             <Button
               onClick={() => setTestDriveOpen(true)}
               variant="outline"
-              className="px-8 py-3.5 uppercase font-bold tracking-wider text-xs gap-2 flex-grow sm:flex-grow-0"
+              className="flex-grow sm:flex-grow-0 px-8 py-3.5 uppercase font-bold tracking-widest text-xs gap-2"
             >
-              Schedule Test Drive <Calendar className="w-4.5 h-4.5" />
+              <Calendar className="w-4 h-4" /> Test Drive
             </Button>
           </div>
 
+          {/* Tech Specs grid */}
           <div className="flex flex-col gap-3">
-            <h3 className="text-xxs font-extrabold uppercase tracking-widest text-slate-400">
-              Technical Specifications
-            </h3>
-            <Card hoverEffect={false} className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-slate-250/50 bg-white dark:bg-brand-900/50">
+            <span className="text-[10px] font-black uppercase tracking-widest text-silver-600">Technical Specifications</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {detailSpecsList.map((spec, i) => (
-                <div key={i} className="flex justify-between sm:flex-col sm:justify-start gap-0.5 border-b sm:border-b-0 border-slate-50 dark:border-brand-850 pb-2 sm:pb-0 text-xs">
-                  <span className="font-semibold text-slate-400 dark:text-slate-500">{spec.label}</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">{spec.value}</span>
-                </div>
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6 hover:bg-white/5 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-gold-500/10 border border-gold-500/15 flex items-center justify-center shrink-0">
+                    <spec.icon className="w-3.5 h-3.5 text-gold-500" />
+                  </div>
+                  <div className="flex flex-col gap-0.5 overflow-hidden">
+                    <span className="text-[10px] font-bold text-silver-600 uppercase tracking-wider truncate">{spec.label}</span>
+                    <span className="text-xs font-bold text-white truncate">{spec.value}</span>
+                  </div>
+                </motion.div>
               ))}
-            </Card>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 3. EMI Calculator Widget */}
-      <section className="bg-slate-100 dark:bg-brand-900/20 rounded-2xl p-8 border border-slate-200/50 dark:border-brand-850 mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* EMI Calculator */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="rounded-2xl p-8 border border-white/8 bg-obsidian-800/80 grid grid-cols-1 md:grid-cols-3 gap-8"
+        style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}
+      >
         <div className="md:col-span-2 flex flex-col gap-6">
           <div>
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-              Financing Estimation
-            </span>
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">
-              Monthly Payment Simulator
-            </h2>
+            <SectionLabel className="mb-2">Financing Estimation</SectionLabel>
+            <h2 className="font-display font-black text-2xl text-white mt-1">Monthly Payment Simulator</h2>
           </div>
 
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-bold text-slate-655 dark:text-slate-300">
-                <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5 text-slate-400" /> Down Payment ({downPaymentPct}%)</span>
-                <span>${((Number(vehicle.price) * downPaymentPct) / 100).toLocaleString()}</span>
+          <div className="flex flex-col gap-6">
+            {[
+              {
+                icon: DollarSign,
+                label: `Down Payment (${downPaymentPct}%)`,
+                value: `$${((Number(vehicle.price) * downPaymentPct) / 100).toLocaleString()}`,
+                min: 10, max: 50, step: 5,
+                state: downPaymentPct, setState: setDownPaymentPct,
+              },
+              {
+                icon: Percent,
+                label: 'Interest Rate',
+                value: `${interestRate}% APR`,
+                min: 1.9, max: 10.9, step: 0.1,
+                state: interestRate, setState: setInterestRate,
+              },
+              {
+                icon: Calendar,
+                label: 'Term Duration',
+                value: `${loanTerm} Months`,
+                min: 36, max: 72, step: 12,
+                state: loanTerm, setState: setLoanTerm,
+              },
+            ].map((slider) => (
+              <div key={slider.label} className="flex flex-col gap-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-silver-400 flex items-center gap-1.5">
+                    <slider.icon className="w-3.5 h-3.5 text-silver-600" /> {slider.label}
+                  </span>
+                  <span className="text-gold-400 font-mono">{slider.value}</span>
+                </div>
+                <input
+                  type="range"
+                  min={slider.min}
+                  max={slider.max}
+                  step={slider.step}
+                  value={slider.state}
+                  onChange={(e) => slider.setState(Number(e.target.value) as any)}
+                  className="w-full cursor-pointer"
+                />
               </div>
-              <input
-                type="range"
-                min="10"
-                max="50"
-                step="5"
-                value={downPaymentPct}
-                onChange={(e) => setDownPaymentPct(Number(e.target.value))}
-                className="w-full accent-brand-600 dark:accent-accent-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-bold text-slate-655 dark:text-slate-300">
-                <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5 text-slate-400" /> Interest rate</span>
-                <span>{interestRate}% APR</span>
-              </div>
-              <input
-                type="range"
-                min="1.9"
-                max="10.9"
-                step="0.1"
-                value={interestRate}
-                onChange={(e) => setInterestRate(Number(e.target.value))}
-                className="w-full accent-brand-600 dark:accent-accent-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-bold text-slate-655 dark:text-slate-300">
-                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-slate-400" /> Term duration</span>
-                <span>{loanTerm} Months</span>
-              </div>
-              <input
-                type="range"
-                min="36"
-                max="72"
-                step="12"
-                value={loanTerm}
-                onChange={(e) => setLoanTerm(Number(e.target.value))}
-                className="w-full accent-brand-600 dark:accent-accent-500"
-              />
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="p-6 bg-white dark:bg-brand-900 rounded-xl flex flex-col justify-center items-center text-center gap-3 border border-slate-200/50 dark:border-brand-850 shadow-sm">
-          <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-            Estimated EMI
-          </span>
-          <span className="text-4xl font-black text-brand-655 dark:text-accent-500">
+        {/* EMI result card */}
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-obsidian-900 to-obsidian-950 border border-gold-500/20 flex flex-col justify-center items-center text-center gap-3 shadow-gold-sm">
+          <span className="text-[10px] font-black text-gold-500/70 uppercase tracking-widest">Estimated EMI</span>
+          <motion.span
+            key={emiValue}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-5xl font-display font-black text-gradient-gold"
+          >
             ${emiValue}
-          </span>
-          <span className="text-xxs text-slate-400 font-semibold uppercase tracking-wider">
-            / month for {loanTerm} mos
-          </span>
-          <p className="text-slate-500 text-xxs leading-normal max-w-[200px] mt-2">
-            Simulated calculations are estimates. Subject to credit verification logs by partner institutions.
+          </motion.span>
+          <span className="text-[10px] text-silver-500 font-bold uppercase tracking-widest">/ month for {loanTerm} mos</span>
+          <p className="text-silver-600 text-[10px] leading-relaxed max-w-[200px] mt-1 border-t border-white/6 pt-3">
+            Simulated estimates only. Subject to credit verification by partner institutions.
           </p>
         </div>
-      </section>
+      </motion.section>
 
-      {/* 4. Interactive Customer Reviews Section */}
-      <section className="flex flex-col gap-6 mt-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-brand-850 pb-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
-            Client Review Logs ({reviews.length})
+      {/* Reviews Section */}
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/6">
+          <h3 className="text-sm font-display font-bold uppercase tracking-widest text-white flex items-center gap-2">
+            <Star className="w-4 h-4 text-gold-500 fill-gold-500" /> Client Review Logs ({reviews.length})
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-xxs font-extrabold uppercase text-slate-455 tracking-wider">Sort:</span>
-            <select
+            <span className="text-[10px] font-black uppercase text-silver-600 tracking-widest">Sort:</span>
+            <Select
               value={reviewsSort}
-              onChange={(e) => setReviewsSort(e.target.value)}
-              className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-0 focus:outline-none cursor-pointer"
-            >
-              <option value="newest">Newest First</option>
-              <option value="highest">Highest Rating</option>
-              <option value="popular">Most Liked</option>
-            </select>
+              onChange={(val) => setReviewsSort(val)}
+              options={[
+                { value: 'newest', label: 'Newest First' },
+                { value: 'highest', label: 'Highest Rating' },
+                { value: 'popular', label: 'Most Liked' },
+              ]}
+              className="border border-white/8 bg-obsidian-850"
+            />
           </div>
         </div>
 
         {/* Submit Review Form */}
         {user ? (
-          <form onSubmit={handleSubmitReview} className="bg-white dark:bg-brand-900 border border-slate-200/60 dark:border-brand-850 rounded-xl p-5 flex flex-col gap-4">
-            <h4 className="text-xs font-bold uppercase text-slate-700 dark:text-slate-350">Submit Your Experience</h4>
+          <form
+            onSubmit={handleSubmitReview}
+            className="rounded-2xl p-6 border border-white/8 bg-obsidian-800/80 flex flex-col gap-5"
+          >
+            <h4 className="text-xs font-bold uppercase tracking-widest text-silver-400">Submit Your Experience</h4>
             <div className="flex gap-4 items-center">
-              <span className="text-xs font-semibold text-slate-500">Your Rating:</span>
+              <span className="text-xs font-semibold text-silver-500">Your Rating:</span>
               <div className="flex gap-1.5">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <button
+                  <motion.button
                     key={star}
                     type="button"
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setNewRating(star)}
                     className="cursor-pointer"
                   >
-                    <Star className={`w-5 h-5 ${star <= newRating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
-                  </button>
+                    <Star className={`w-5 h-5 transition-all ${star <= newRating ? 'text-amber-400 fill-amber-400' : 'text-silver-700'}`} />
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -654,90 +682,119 @@ export const CarDetailPage: React.FC = () => {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Share details of your showroom and performance test drive experience..."
-              className="w-full p-3 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              className="input-premium w-full p-3.5 rounded-xl text-xs resize-y"
             />
-            <Button type="submit" variant="accent" className="font-bold uppercase text-xxs tracking-wider py-2.5 px-6 self-end">
-              Submit Review
+            <Button type="submit" variant="gold" className="font-black uppercase text-xs tracking-widest py-2.5 px-6 self-end gap-2">
+              <Star className="w-3.5 h-3.5" /> Submit Review
             </Button>
           </form>
         ) : (
-          <p className="text-xxs font-bold text-slate-450 uppercase tracking-widest text-center py-4 bg-slate-100 dark:bg-brand-900/40 border rounded-xl">
-            Please <Link to="/login" className="underline text-brand-600">Sign In</Link> to share your review log.
-          </p>
+          <div className="text-center py-6 rounded-2xl border border-dashed border-white/10 bg-obsidian-850/40">
+            <p className="text-sm text-silver-500 font-medium">
+              Please{' '}
+              <Link to="/login" className="font-bold text-gold-400 hover:text-gold-300 transition-colors underline underline-offset-2">
+                Sign In
+              </Link>{' '}
+              to share your review log.
+            </p>
+          </div>
         )}
 
-        {/* Reviews List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-          {sortedReviews.map((rev) => {
-            const hasLiked = user && rev.likedBy.includes(user.email);
-            const isVerified = isVerifiedBuyer && rev.email === user?.email;
-            
-            return (
-              <Card key={rev.id} hoverEffect={false} className="bg-white border border-slate-250/50 p-6 flex flex-col gap-4 justify-between">
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{rev.name}</span>
-                      {isVerified && (
-                        <Badge variant="success" className="text-[9px] px-1 py-0.5">Verified Buyer</Badge>
-                      )}
+        {/* Reviews grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
+          <AnimatePresence>
+            {sortedReviews.map((rev, i) => {
+              const hasLiked = user && rev.likedBy.includes(user.email);
+              const isVerified = isVerifiedBuyer && rev.email === user?.email;
+              return (
+                <motion.div
+                  key={rev.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="p-5 rounded-2xl border border-white/8 bg-obsidian-800/80 flex flex-col gap-4 justify-between"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gold-500/30 to-gold-700/30 border border-gold-500/20 flex items-center justify-center text-[10px] font-black text-gold-400">
+                          {rev.name[0]}
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-white">{rev.name}</span>
+                          {isVerified && (
+                            <Badge variant="success" className="text-[9px] px-1.5 py-0.5 w-fit">✓ Verified Buyer</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className={`w-3 h-3 ${s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-silver-700'}`} />
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex gap-0.5 text-amber-500">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star key={s} className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-amber-500' : 'text-slate-200'}`} />
-                      ))}
-                    </div>
+                    <p className="text-xs text-silver-400 leading-relaxed italic border-l-2 border-gold-500/30 pl-3">
+                      "{rev.comment}"
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                    "{rev.comment}"
-                  </p>
-                </div>
 
-                <div className="flex justify-between items-center border-t border-slate-50 dark:border-brand-850 pt-3">
-                  <span className="text-xxs text-slate-400 font-semibold">{rev.date}</span>
-                  <button
-                    onClick={() => handleLikeReview(rev.id)}
-                    className={`flex items-center gap-1.5 text-xxs font-bold uppercase tracking-wider cursor-pointer ${
-                      hasLiked ? 'text-brand-600 dark:text-accent-500' : 'text-slate-455 hover:text-slate-700'
-                    }`}
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5" /> Like ({rev.likes})
-                  </button>
-                </div>
-              </Card>
-            );
-          })}
+                  <div className="flex justify-between items-center border-t border-white/6 pt-3">
+                    <span className="text-[10px] text-silver-600 font-semibold flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {rev.date}
+                    </span>
+                    <motion.button
+                      whileTap={{ scale: 0.92 }}
+                      onClick={() => handleLikeReview(rev.id)}
+                      className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${
+                        hasLiked ? 'text-gold-400' : 'text-silver-600 hover:text-white'
+                      }`}
+                    >
+                      <ThumbsUp className={`w-3.5 h-3.5 ${hasLiked ? 'fill-gold-400' : ''}`} /> Helpful ({rev.likes})
+                    </motion.button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </section>
 
-      {/* 5. Similar Vehicles recommendations */}
+      {/* Similar Vehicles */}
       {similarVehicles && similarVehicles.length > 0 && (
-        <section className="flex flex-col gap-6 mt-8">
-          <h3 className="text-xxs font-extrabold uppercase tracking-widest text-slate-400">
-            Similar Vehicle Recommendations
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {similarVehicles.map((s: any) => {
+        <section className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-silver-600">Similar Vehicle Recommendations</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {similarVehicles.map((s: any, i: number) => {
               const specs = getVehicleExtendedSpecs(s.make, s.model, Number(s.price), s.id);
               return (
-                <Card key={s.id} hoverEffect className="overflow-hidden border border-slate-250/40 p-0 flex flex-col h-full bg-white dark:bg-brand-900">
-                  <div className="h-36 bg-slate-100 overflow-hidden relative">
-                    <img src={specs.images[0]} alt={s.model} className="w-full h-full object-cover" />
+                <motion.div
+                  key={s.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  whileHover={{ y: -5 }}
+                  className="rounded-2xl overflow-hidden border border-white/8 bg-obsidian-800/80 flex flex-col"
+                  style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}
+                >
+                  <div className="h-36 overflow-hidden relative">
+                    <img src={specs.images[0]} alt={s.model} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-obsidian-950/60 to-transparent" />
                   </div>
-                  <div className="p-4 flex flex-col gap-2">
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-white truncate">
-                      {s.make} {s.model}
-                    </h4>
-                    <p className="text-sm font-black text-brand-655 dark:text-accent-500">
+                  <div className="p-4 flex flex-col gap-2 flex-grow">
+                    <h4 className="text-xs font-bold text-white truncate">{s.make} {s.model}</h4>
+                    <p className="text-sm font-display font-black text-gradient-gold">
                       ${Number(s.price).toLocaleString()}
                     </p>
-                    <Link to={`/vehicles/${s.id}`} className="mt-2">
-                      <Button variant="secondary" size="sm" className="w-full text-xxs uppercase tracking-wider py-1.5">
-                        Details Specs
+                    <Link to={`/vehicles/${s.id}`} className="mt-auto pt-2">
+                      <Button variant="secondary" size="sm" className="w-full text-[10px] uppercase tracking-widest py-2 font-bold">
+                        View Details
                       </Button>
                     </Link>
                   </div>
-                </Card>
+                </motion.div>
               );
             })}
           </div>
@@ -747,84 +804,70 @@ export const CarDetailPage: React.FC = () => {
       {/* Test Drive Booking Modal */}
       <Modal isOpen={testDriveOpen} onClose={() => setTestDriveOpen(false)} title="Book Showroom Test Drive">
         <form onSubmit={handleBookTestDrive} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Full Name</label>
-            <input
-              type="text"
-              required
-              value={tdName}
-              onChange={(e) => setTdName(e.target.value)}
-              placeholder="e.g. John Doe"
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
+          {[
+            { label: 'Full Name', type: 'text', value: tdName, onChange: setTdName, placeholder: 'e.g. John Doe' },
+            { label: 'Email Address', type: 'email', value: tdEmail, onChange: setTdEmail, placeholder: 'e.g. john@dealership.com' },
+          ].map((field) => (
+            <div key={field.label} className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">{field.label}</label>
+              <input
+                type={field.type}
+                required
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                placeholder={field.placeholder}
+                className="input-premium w-full px-3.5 py-2.5 rounded-xl text-xs"
+              />
+            </div>
+          ))}
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Email Address</label>
-            <input
-              type="email"
-              required
-              value={tdEmail}
-              onChange={(e) => setTdEmail(e.target.value)}
-              placeholder="e.g. john@dealership.com"
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Showroom Hub Location</label>
-            <select
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">Showroom Hub Location</label>
+            <Select
               value={tdHub}
-              onChange={(e) => setTdHub(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none text-slate-700 dark:text-slate-200"
-            >
-              <option value="New York Showroom">New York Showroom Hub</option>
-              <option value="Los Angeles Center">Los Angeles Center</option>
-              <option value="Chicago Headquarters">Chicago Headquarters</option>
-            </select>
+              onChange={(val) => setTdHub(val)}
+              options={[
+                { value: 'New York Showroom', label: 'New York Showroom Hub' },
+                { value: 'Los Angeles Center', label: 'Los Angeles Center' },
+                { value: 'Chicago Headquarters', label: 'Chicago Headquarters' },
+              ]}
+              className="w-full"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Preferred Date</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">Preferred Date</label>
               <input
                 type="date"
                 required
                 value={tdDate}
                 onChange={(e) => setTdDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none text-slate-700 dark:text-slate-200"
+                className="input-premium w-full px-3.5 py-2.5 rounded-xl text-xs cursor-pointer"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xxs font-bold uppercase tracking-wider text-slate-500">Time Slot</label>
-              <select
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-silver-500">Time Slot</label>
+              <Select
                 value={tdTime}
-                onChange={(e) => setTdTime(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-brand-950 border border-slate-200 dark:border-brand-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none text-slate-700 dark:text-slate-200"
-              >
-                <option value="10:00 AM">10:00 AM</option>
-                <option value="12:00 PM">12:00 PM</option>
-                <option value="02:00 PM">02:00 PM</option>
-                <option value="04:00 PM">04:00 PM</option>
-              </select>
+                onChange={(val) => setTdTime(val)}
+                options={[
+                  { value: '10:00 AM', label: '10:00 AM' },
+                  { value: '12:00 PM', label: '12:00 PM' },
+                  { value: '02:00 PM', label: '02:00 PM' },
+                  { value: '04:00 PM', label: '04:00 PM' },
+                ]}
+                className="w-full"
+              />
             </div>
           </div>
 
-          <div className="flex gap-2.5 mt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setTestDriveOpen(false)}
-              className="flex-grow font-bold uppercase text-xs tracking-wider py-3"
-            >
+          <div className="flex gap-2.5 mt-2">
+            <Button type="button" variant="secondary" onClick={() => setTestDriveOpen(false)} className="flex-grow py-3 font-bold uppercase text-xs tracking-widest">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="accent"
-              className="flex-grow font-bold uppercase text-xs tracking-wider py-3"
-            >
-              Confirm Appointment
+            <Button type="submit" variant="gold" className="flex-grow py-3 font-black uppercase text-xs tracking-widest gap-2">
+              <Calendar className="w-4 h-4" /> Confirm Appointment
             </Button>
           </div>
         </form>
