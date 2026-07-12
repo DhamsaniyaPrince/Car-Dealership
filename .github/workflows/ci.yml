@@ -1,0 +1,85 @@
+name: Monorepo CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: car_dealership_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-runs 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install Backend Dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/car_dealership_test?schema=public
+
+      - name: Run Backend Tests
+        run: npm test
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/car_dealership_test?schema=public
+          JWT_ACCESS_SECRET: test_jwt_access_secret_12345678
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_12345678
+          PORT: 5000
+          CORS_ORIGIN: http://localhost:5173
+
+  frontend-test:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run Frontend Tests
+        run: npm test
+        working-directory: ./frontend
+
+      - name: Verify Production Build
+        run: npm run build
+        working-directory: ./frontend
